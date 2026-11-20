@@ -8,30 +8,32 @@ async function tryMode(label, opts) {
   const browser = await chromium.launch(opts);
   const ctx = await browser.newContext({ userAgent: UA, viewport: { width: 1280, height: 900 }, locale: "en-US" });
   const page = await ctx.newPage();
-  let status = null;
+  const statuses = [];
   page.on("response", (r) => {
-    if (r.url().includes("/problems/two-sum") && r.request().resourceType() === "document") status = r.status();
+    if (r.url().includes("/problems/two-sum") && r.request().resourceType() === "document") statuses.push(r.status());
   });
   try {
-    await page.goto("https://leetcode.com/problems/two-sum/", { waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForTimeout(4000);
+    await page.goto("https://leetcode.com/problems/two-sum/", { waitUntil: "domcontentloaded", timeout: 60000 });
+    for (let i = 0; i < 20; i++) {
+      const t = await page.title();
+      if (!/just a moment|attention required/i.test(t)) break;
+      await page.waitForTimeout(1500);
+    }
     const title = await page.title();
-    const body = (await page.evaluate(() => document.body?.innerText || "")).slice(0, 200).replace(/\s+/g, " ");
-    console.log(`[${label}] docStatus=${status} title=${JSON.stringify(title)}`);
+    const body = (await page.evaluate(() => document.body?.innerText || "")).slice(0, 160).replace(/\s+/g, " ");
+    console.log(`[${label}] docStatuses=${statuses.join(",")} title=${JSON.stringify(title)}`);
     console.log(`[${label}] body: ${body}`);
-    // in-page fetch, same as the real submit would do
     const probe = await page.evaluate(async () => {
       const r = await fetch("/problems/two-sum/", { credentials: "include" });
       return { status: r.status, mitigated: r.headers.get("cf-mitigated") };
     });
-    console.log(`[${label}] in-page fetch /problems/two-sum/ -> ${JSON.stringify(probe)}`);
+    console.log(`[${label}] in-page fetch -> ${JSON.stringify(probe)}`);
   } catch (e) {
-    console.log(`[${label}] ERROR ${String(e).slice(0, 200)}`);
+    console.log(`[${label}] ERROR ${String(e).slice(0, 160)}`);
   }
   await browser.close();
 }
 
-(async () => {
-  await tryMode("headless", { headless: true, args: ["--disable-blink-features=AutomationControlled"] });
-  await tryMode("headed-xvfb", { headless: false, args: ["--disable-blink-features=AutomationControlled"] });
-})();
+const args = ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"];
+await tryMode("headless-new", { headless: true, args, channel: undefined });
+await tryMode("headed", { headless: false, args });
