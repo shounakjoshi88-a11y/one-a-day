@@ -1,4 +1,6 @@
-node_modules/
+.env.runner
+.runner.lock
+logs/
 .wrangler/
-*.secret
-dist/
+node_modules/
+*.log
