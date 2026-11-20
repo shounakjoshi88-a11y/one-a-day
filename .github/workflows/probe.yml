@@ -1,0 +1,16 @@
+name: leetcode-access-probe
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm i -D playwright@1.56.0 && npx playwright install --with-deps chromium
+      - name: probe
+        run: node probe.mjs
