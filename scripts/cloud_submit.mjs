@@ -77,18 +77,35 @@ function submitExpression(job) {
 }
 
 /** Wait for Cloudflare's JS challenge to hand control back to the real page. */
-async function waitForPage(page, timeoutMs = 60000) {
+async function waitForPage(page, timeoutMs = 120000) {
   const deadline = Date.now() + timeoutMs;
+  let nextLog = 0;
+  let lastUrl = "";
+  let reloaded = false;
   while (Date.now() < deadline) {
     const state = await page
       .evaluate(() => ({
         title: document.title,
-        body: (document.body?.innerText || "").slice(0, 400),
+        url: location.href,
+        body: (document.body?.innerText || "").slice(0, 200),
       }))
-      .catch(() => ({ title: "", body: "" }));
-    const challenged = /just a moment|checking your browser|cf-challenge/i.test(`${state.title} ${state.body}`);
+      .catch(() => ({ title: "", url: "", body: "" }));
+    const challenged = /just a moment|checking your browser|cf-challenge|attention required|you have been blocked/i.test(
+      `${state.title} ${state.body}`
+    );
+    if (Date.now() > nextLog) {
+      log(`page: title=${JSON.stringify(state.title)} url=${state.url} body=${JSON.stringify(state.body)}`);
+      nextLog = Date.now() + 10000;
+    }
     if (!challenged && state.body.length) return;
-    await page.waitForTimeout(1500);
+    // A challenge that stalls for 45s sometimes clears on a fresh navigation.
+    if (!reloaded && Date.now() > deadline - timeoutMs + 45000) {
+      reloaded = true;
+      log("challenge stalled; reloading");
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
+    }
+    if (state.url && state.url !== lastUrl) lastUrl = state.url;
+    await page.waitForTimeout(2000);
   }
   throw new Error("Cloudflare challenge did not clear in time");
 }
