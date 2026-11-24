@@ -9,5 +9,8 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail --format pretty",
     "submit": "node scripts/browser_submit.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }

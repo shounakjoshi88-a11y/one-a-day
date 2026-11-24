@@ -1,0 +1,44 @@
+name: browser-submit
+
+# The Worker can solve a problem but cannot submit it: LeetCode's Cloudflare
+# challenge blocks plain fetch() from a datacenter. This workflow runs a real
+# Chromium in GitHub Actions, picks up any run the Worker parked for a browser,
+# submits it, and reports the verdict back. Checks every 5 minutes; a no-op
+# takes a couple of seconds. Nothing runs on the user's machine.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-submit
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Submit parked run
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          RUNNER_SECRET: ${{ secrets.RUNNER_SECRET }}
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          CSRFTOKEN: ${{ secrets.CSRFTOKEN }}
+        run: xvfb-run -a node scripts/cloud_submit.mjs
