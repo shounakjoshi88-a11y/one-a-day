@@ -6,9 +6,11 @@ name: browser-submit
 # submits it, and reports the verdict back. Checks every 5 minutes; a no-op
 # takes a couple of seconds. Nothing runs on the user's machine.
 
+# Schedule disabled: with a valid LEETCODE_SESSION the Worker submits directly
+# from the datacenter (verified 2026-11-24, Accepted 865/865). This runner only
+# mattered when the session was stale and LeetCode challenged the request.
+# Kept, manual-only, as a last-resort experiment.
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
